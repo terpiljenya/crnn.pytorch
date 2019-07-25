@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# encoding: utf-8
+
 from __future__ import print_function
 from __future__ import division
 
@@ -29,7 +32,7 @@ parser.add_argument('--nepoch', type=int, default=25, help='number of epochs to 
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--pretrained', default='', help="path to pretrained model (to continue training)")
-parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
+parser.add_argument('--alphabet', type=str, default='!"#$%\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]_`abcdefghijklmnopqrstuvwxyz|~\xa0«\xad°º»ÄÇ×ÙàáâãçèéêíñòóõöøúüÿāăČđēėęěğīİıķŝşšŧŭųŷžəʀʌʏ́̆ΒΗΚΜΞΠΡΦίαβγδεικλνοςτωϋЁЄІАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяёєіѢѣҕүҺҽҿӃәӥөԱՊՍաեըթժիլհղմնոպտւօאבדהוזטיךכלםמןנסעףפצקרשת،ابةتحخدذرزسشضعغفكلمنهوىيژکگڵیൣงนพลอืเ้აბგდევთილმნოპრსტუფღყჩცხᅠዙᴀᴇᴋᴏᴘᴜẏạẦắếềệốờừữ\u200b\u200c–—―‘’“”„•‣…※⁰⁴⁺€₽⃣№℮ℴ≥②╎►★☆☉☛♡✎✓✦➤⠀。《》「」あいうえかきくげこしすせそたつてでとなにねのはぶまめもゆよらりるれをんゥトブム・ー上下信傘充報填夜季射度待情敵日明昼月本温爪物私箭節素聞見配雨音顔鼻고기김남는다라랑리면명모바보사선스없여이있져주지진크하해️１２３４５６７８９＜＞￼𖢲𝕮𝖆𝖈𝖓𝖔𝖙🇦🇧🇬🇷🇺🇾\U0001f970\U0001f976\U0001f9a0\U0001f9b7\U0001f9ec\U0001f9f4')
 parser.add_argument('--expr_dir', default='expr', help='Where to store samples and models')
 parser.add_argument('--displayInterval', type=int, default=500, help='Interval to be displayed')
 parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
@@ -43,7 +46,6 @@ parser.add_argument('--keep_ratio', action='store_true', help='whether to keep r
 parser.add_argument('--manualSeed', type=int, default=1234, help='reproduce experiemnt')
 parser.add_argument('--random_sample', action='store_true', help='whether to sample the dataset with random sampler')
 opt = parser.parse_args()
-print(opt)
 
 if not os.path.exists(opt.expr_dir):
     os.makedirs(opt.expr_dir)
@@ -57,7 +59,7 @@ cudnn.benchmark = True
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-train_dataset = dataset.lmdbDataset(root=opt.trainroot)
+train_dataset = dataset.lmdbDataset(root=opt.trainRoot)
 assert train_dataset
 if not opt.random_sample:
     sampler = dataset.randomSequentialSampler(train_dataset, opt.batchSize)
@@ -69,7 +71,7 @@ train_loader = torch.utils.data.DataLoader(
     num_workers=int(opt.workers),
     collate_fn=dataset.alignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
 test_dataset = dataset.lmdbDataset(
-    root=opt.valroot, transform=dataset.resizeNormalize((100, 32)))
+    root=opt.valRoot, transform=dataset.resizeNormalize((100, 32)))
 
 nclass = len(opt.alphabet) + 1
 nc = 1
@@ -154,7 +156,6 @@ def val(net, dataset, criterion, max_iter=100):
         loss_avg.add(cost)
 
         _, preds = preds.max(2)
-        preds = preds.squeeze(2)
         preds = preds.transpose(1, 0).contiguous().view(-1)
         sim_preds = converter.decode(preds.data, preds_size.data, raw=False)
         for pred, target in zip(sim_preds, cpu_texts):
@@ -163,13 +164,13 @@ def val(net, dataset, criterion, max_iter=100):
 
     raw_preds = converter.decode(preds.data, preds_size.data, raw=True)[:opt.n_test_disp]
     for raw_pred, pred, gt in zip(raw_preds, sim_preds, cpu_texts):
-        print('%-20s => %-20s, gt: %-20s' % (raw_pred, pred, gt))
+        print('%-20s => %-20s, gt: %-20s' % (raw_pred, pred, gt.decode('utf-8')))
 
     accuracy = n_correct / float(max_iter * opt.batchSize)
     print('Test loss: %f, accuray: %f' % (loss_avg.val(), accuracy))
 
 
-def trainBatch(net, criterion, optimizer):
+def trainBatch(crnn, criterion, optimizer):
     data = train_iter.next()
     cpu_images, cpu_texts = data
     batch_size = cpu_images.size(0)
@@ -177,7 +178,6 @@ def trainBatch(net, criterion, optimizer):
     t, l = converter.encode(cpu_texts)
     utils.loadData(text, t)
     utils.loadData(length, l)
-
     preds = crnn(image)
     preds_size = Variable(torch.IntTensor([preds.size(0)] * batch_size))
     cost = criterion(preds, text, preds_size, length) / batch_size

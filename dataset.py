@@ -29,7 +29,8 @@ class lmdbDataset(Dataset):
             sys.exit(0)
 
         with self.env.begin(write=False) as txn:
-            nSamples = int(txn.get('num-samples'))
+            str = 'num-samples'.encode('utf-8')
+            nSamples = int(txn.get(str))
             self.nSamples = nSamples
 
         self.transform = transform
@@ -43,7 +44,7 @@ class lmdbDataset(Dataset):
         index += 1
         with self.env.begin(write=False) as txn:
             img_key = 'image-%09d' % index
-            imgbuf = txn.get(img_key)
+            imgbuf = txn.get(img_key.encode('utf-8'))
 
             buf = six.BytesIO()
             buf.write(imgbuf)
@@ -58,7 +59,7 @@ class lmdbDataset(Dataset):
                 img = self.transform(img)
 
             label_key = 'label-%09d' % index
-            label = str(txn.get(label_key))
+            label = txn.get(label_key.encode())
 
             if self.target_transform is not None:
                 label = self.target_transform(label)
@@ -108,7 +109,7 @@ class randomSequentialSampler(sampler.Sampler):
 
 class alignCollate(object):
 
-    def __init__(self, imgH=32, imgW=100, keep_ratio=False, min_ratio=1):
+    def __init__(self, imgH=32, imgW=256, keep_ratio=False, min_ratio=1):
         self.imgH = imgH
         self.imgW = imgW
         self.keep_ratio = keep_ratio
@@ -116,7 +117,6 @@ class alignCollate(object):
 
     def __call__(self, batch):
         images, labels = zip(*batch)
-
         imgH = self.imgH
         imgW = self.imgW
         if self.keep_ratio:
